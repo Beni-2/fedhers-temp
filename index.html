@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEDHERS PRO LOGIC - V2.5 Stable</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=IBM+Plex+Mono:wght@400;700&display=swap');
+
+        .led-display { font-family: 'Orbitron', sans-serif; background: #1a1a1a; color: #ff3333; text-shadow: 0 0 10px rgba(255, 51, 51, 0.7); border: 4px inset #333; }
+        .lcd-monitor { font-family: 'IBM Plex Mono', monospace; background: #002200; color: #00ff00; border: 5px solid #333; box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.2); text-shadow: 0 0 5px rgba(0, 255, 0, 0.5); }
+        .control-panel { background: linear-gradient(145deg, #2c3e50, #000000); border: 8px solid #444; box-shadow: 10px 10px 30px rgba(0,0,0,0.5); position: relative; }
+        .keypad-btn { background: #444; color: white; border: 2px solid #222; transition: all 0.1s; box-shadow: 2px 2px 0 #111; }
+        .keypad-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #111; }
+        
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .blinking { animation: blink 0.5s infinite; }
+        
+        .elevation-container { background: #020617; border: 2px solid #1e293b; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+        .pad-segment { position: relative; height: 70px; background: #dbeafe; overflow: hidden; border: 1px solid #1e293b; transition: all 0.3s; } 
+        
+        .droplets-layer { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='24' viewBox='0 0 12 24' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='6' cy='6' r='1.5' fill='%231d4ed8' fill-opacity='0.9'/%3E%3C/svg%3E");
+            background-repeat: repeat; opacity: 0; transition: opacity 0.5s ease;
+        }
+
+        @keyframes trickle { from { background-position: 0 0; } to { background-position: 0 24px; } }
+        .water-active .droplets-layer { opacity: 1; animation: trickle 0.6s linear infinite; }
+        
+        .curtain-overlay { position: absolute; bottom: 0; width: 100%; background: #22c55e; transition: height 0.3s ease; border-top: 1px solid #15803d; z-index: 10; } 
+        
+        @keyframes arrowFlow { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 0.8; } 85% { opacity: 0.8; } 100% { transform: translateY(280px); opacity: 0; } }
+        .flow-arrow-lane { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 32px; visibility: hidden; }
+        .arrow-sprite { width: 4px; height: 6px; background: #22c55e; margin: 12px 0; clip-path: polygon(50% 100%, 0% 50%, 30% 50%, 30% 0%, 70% 0%, 70% 50%, 100% 50%); animation: arrowFlow 2s linear infinite; }
+
+        .fan-orb { width: 8px; height: 8px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease; }
+        .fan-orb-red { background-color: #ef4444; }
+        .fan-orb-green { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .fan-orb-yellow { background-color: #eab308; }
+        @keyframes fan-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .fan-spinning { animation: fan-spin 0.2s linear infinite; color: #22c55e !important; }
+
+        .mode-select, .manual-input { background: #0f172a; border: 1px solid #334155; color: #22c55e; font-family: 'IBM Plex Mono', monospace; padding: 4px; border-radius: 4px; width: 100%; text-align: right; outline: none; font-size: 10px; }
+        .struct-input { background: #020617; border: 1px solid #1e293b; color: #fff; text-align: right; font-size: 9px; padding: 2px 4px; border-radius: 4px; width: 100%; outline: none; }
+        
+        #alarm-ticker { background: rgba(239, 68, 68, 0.1); border-radius: 4px; padding: 2px 6px; border-left: 2px solid #ef4444; min-height: 14px; transition: all 0.3s ease; }
+        .toggle-switch { position: relative; display: inline-block; width: 34px; height: 18px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #ef4444; }
+        input:checked + .slider:before { transform: translateX(16px); }
+
+        .schedule-table { width: 100%; border-collapse: collapse; }
+        .schedule-table th, .schedule-table td { padding: 4px; text-align: center; border-bottom: 1px solid #1e293b; }
+        .schedule-active { background: rgba(59, 130, 246, 0.2); font-weight: bold; color: #60a5fa; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        @keyframes lamp-glow { 0%, 100% { filter: drop-shadow(0 0 2px #22c55e); } 50% { filter: drop-shadow(0 0 10px #22c55e); } }
+        @keyframes heat-pulse { 0%, 100% { transform: scale(1); transform-origin: center; } 50% { transform: scale(1.2); transform-origin: center; } }
+        .lamp-active { animation: lamp-glow 1.5s infinite; color: #22c55e; }
+        .lamp-inactive { color: #ef4444; }
+        .flame-active { animation: heat-pulse 0.6s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-950 text-gray-100 min-h-screen p-2 md:p-4 overflow-x-hidden">
+
+<div class="max-w-screen-2xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-4">
+    
+    <!-- COL 1: TEMPTRON T-607 CONTROLLER -->
+    <div class="flex flex-col gap-3">
+        <div class="control-panel p-4 rounded-3xl w-full">
+            <h1 class="text-white text-[11px] font-bold flex justify-between items-center mb-2 uppercase">
+                <span>Fedhers Pro Logic V2.5</span>
+                <div class="flex items-center">
+                    <span class="text-[7px] text-white/50 mr-1 uppercase">Prog</span>
+                    <div id="prog-indicator" class="w-2 h-2 rounded-full bg-gray-800 ml-1"></div>
+                    <span id="logic-status-orb" class="w-2 h-2 rounded-full bg-blue-500 ml-2"></span>
+                </div>
+            </h1>
+
+            <div class="flex flex-col mb-2 border-b border-white/10 pb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-[8px] text-white/50 uppercase">Stage:</span>
+                    <div id="logic-state-notif" class="text-[9px] font-bold text-green-400 uppercase truncate">INITIALIZING...</div>
+                </div>
+                <div id="alarm-ticker" class="text-[8px] font-bold text-red-400 mt-1 uppercase truncate"></div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-gray-400 uppercase">Data Display</span>
+                    <div id="data-display" class="led-display h-12 flex items-center justify-center text-2xl rounded-lg">ProLogic</div>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[8px] text-gray-400 uppercase">Func Code</span>
+                    <div id="func-display" class="led-display h-12 flex items-center justify-center text-2xl rounded-lg">--</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-1.5 mb-4" id="keypad-container"></div>
+
+            <div class="grid grid-cols-4 gap-1 text-[7px] uppercase text-center font-bold">
+                <div id="led-heat" class="bg-gray-800 p-1 rounded transition-colors">Heat</div>
+                <div id="led-fan1" class="bg-gray-800 p-1 rounded transition-colors">Fan 1</div>
+                <div id="led-fan2" class="bg-gray-800 p-1 rounded transition-colors">Fan 2</div>
+                <div id="led-fan3" class="bg-gray-800 p-1 rounded transition-colors">Fan 3</div>
+                <div id="led-fan4" class="bg-gray-800 p-1 rounded transition-colors">Fan 4</div>
+                <div id="led-fan5" class="bg-gray-800 p-1 rounded transition-colors">Fan 5</div>
+                <div id="led-cool" class="bg-gray-800 p-1 rounded transition-colors">Cool</div>
+                <div id="led-alarm" class="bg-gray-800 p-1 rounded transition-colors">Alarm</div>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+            <h3 class="text-[10px] font-bold text-yellow-500 uppercase mb-2">Farm Structural Specs</h3>
+            <div class="mb-3">
+                <select id="struct-mode" class="mode-select !text-blue-400 !text-left !px-2" onchange="window.handleStructModeChange()">
+                    <option value="standard" selected>Current Size (138m x 16m)</option>
+                    <option value="market">Industry Standard (120m x 12m)</option>
+                    <option value="custom">Custom Manual Entry</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-[9px] text-gray-400 mb-2">
+                <div class="flex flex-col gap-1"><label>LENGTH (M)</label><input type="number" id="house-len" value="138.00" class="struct-input" onblur="window.triggerUpdate()" onfocus="this.select()" readonly></div>
+                <div class="flex flex-col gap-1"><label>WIDTH (M)</label><input type="number" id="house-wid" value="16.00" class="struct-input" onblur="window.triggerUpdate()" onfocus="this.select()" readonly></div>
+                <div class="flex flex-col gap-1"><label>HEIGHT (M)</label><input type="number" id="house-hgt" value="2.50" class="struct-input" onblur="window.triggerUpdate()" onfocus="this.select()" readonly></div>
+                <div class="flex flex-col gap-1"><label>FAN RPM</label><input type="number" id="fan-rpm" value="550.00" class="struct-input" onblur="window.triggerUpdate()" onfocus="this.select()" readonly></div>
+            </div>
+            <div class="mt-2 border-t border-slate-800 pt-2">
+                <h4 class="text-[8px] font-bold text-blue-400 uppercase mb-1">Pad Specs (Recomputed)</h4>
+                <div class="text-[7px] text-white/60 space-y-0.5 font-mono">
+                    <div>Center: 1pc x 1.8288m x 16m</div>
+                    <div>Sides: 2pcs x 1.8288m x 11m</div>
+                    <div id="total-pad-area-readout" class="text-yellow-500">Total Area: 69.49 m²</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COL 2: HOUSE MODEL & PHYSICS MONITOR -->
+    <div class="flex flex-col gap-3 xl:col-span-2">
+        <div class="bg-gray-900 p-2 sm:p-4 rounded-3xl border border-gray-700 flex flex-col min-h-[500px] relative">
+            <div class="relative flex-grow border-4 border-gray-800 rounded-lg bg-black overflow-hidden shadow-[inset_0_0_40px_rgba(0,0,0,1)] flex flex-col justify-between pt-1 pb-1">
+                <div class="elevation-container">
+                    <div class="text-[7px] text-white/40 uppercase mb-2 flex justify-between font-bold">
+                        <span>Cooling Pad Elevation Monitor (1.8288m H)</span>
+                        <span class="text-blue-400">Blue: Exposed Pad</span> <span class="text-green-500">Green: Curtain</span>
+                    </div>
+                    <div class="flex gap-1 items-end h-[70px]">
+                        <div class="flex-none w-[25%]">
+                            <div id="elev-left" class="pad-segment"><div class="droplets-layer"></div><div id="curtain-left" class="curtain-overlay"></div></div>
+                            <div class="text-[6px] text-center text-white/40 mt-1" id="label-l-width">11m (L)</div>
+                        </div>
+                        <div class="w-[1%] border-r border-dashed border-white/20 h-10"></div>
+                        <div class="flex-grow">
+                            <div id="elev-center" class="pad-segment"><div class="droplets-layer"></div><div id="curtain-center" class="curtain-overlay"></div></div>
+                            <div class="text-[6px] text-center text-white/40 mt-1" id="label-c-width">16m (CTR)</div>
+                        </div>
+                        <div class="w-[1%] border-r border-dashed border-white/20 h-10"></div>
+                        <div class="flex-none w-[25%]">
+                            <div id="elev-right" class="pad-segment"><div class="droplets-layer"></div><div id="curtain-right" class="curtain-overlay"></div></div>
+                            <div class="text-[6px] text-center text-white/40 mt-1" id="label-r-width">11m (R)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LPG Brooder Lamp Display -->
+                <div id="brooder-lamp-display" class="flex flex-col items-center justify-center -mb-4 z-20 lamp-inactive">
+                    <div id="lamp-count-val" class="text-[9px] font-bold text-white bg-green-600 px-1.5 rounded-full mb-0.5 hidden">0</div>
+                    <svg viewBox="0 0 100 100" class="w-8 h-8">
+                        <path d="M50 10 L85 45 L15 45 Z" fill="currentColor" />
+                        <rect x="45" y="45" width="10" height="15" fill="currentColor" />
+                        <circle cx="50" cy="55" r="12" fill="currentColor" />
+                        <path id="lamp-svg-flame" class="hidden" d="M50 50 Q60 65 50 80 Q40 65 50 50" fill="#fbbf24" />
+                    </svg>
+                </div>
+
+                <div class="relative flex-grow w-full overflow-hidden">
+                    <div class="flex justify-center w-full gap-1 sm:gap-3 px-1 sm:px-4 h-full pt-[10px]" id="arrows-container"></div>
+                </div>
+                <div class="flex justify-center w-full gap-1 sm:gap-3 px-1 sm:px-4 mb-1 border-t border-gray-800 pt-2 sm:pt-4 bg-black/40 z-10" id="fans-row"></div>
+            </div>
+
+            <div class="grid grid-cols-5 gap-1 sm:gap-2 mt-2 sm:mt-4 text-center">
+                <div id="exchange-box" class="bg-slate-800 p-1 sm:p-2 rounded border border-slate-700 transition-colors">
+                    <div class="text-[6px] sm:text-[8px] text-gray-500 uppercase">Exchange</div>
+                    <div id="exchange-time" class="text-xs sm:text-lg font-bold text-yellow-400">OFF</div>
+                </div>
+                <div class="bg-slate-800 p-1 sm:p-2 rounded border border-slate-700">
+                    <div class="text-[6px] sm:text-[8px] text-gray-500 uppercase">Tunnel</div>
+                    <div id="speed-blower" class="text-[6px] sm:text-[9px] sm:text-green-400 font-bold leading-tight">0.0 m/s (0 fpm)</div>
+                </div>
+                <div class="bg-slate-800 p-1 sm:p-2 rounded border border-slate-700">
+                    <div class="text-[6px] sm:text-[8px] text-gray-500 uppercase">Static</div>
+                    <div id="static-press-display" class="text-xs sm:text-lg font-bold text-blue-400">0 Pa</div>
+                </div>
+                <div class="bg-slate-800 p-1 sm:p-2 rounded border border-slate-700">
+                    <div class="text-[6px] sm:text-[8px] text-gray-500 uppercase">Actual T</div>
+                    <div id="dash-temp" class="text-xs sm:text-lg font-bold text-red-400">--</div>
+                </div>
+                <div class="bg-slate-800 p-1 sm:p-2 rounded border border-slate-700">
+                    <div class="text-[6px] sm:text-[8px] text-gray-500 uppercase">Actual RH</div>
+                    <div id="dash-rh" class="text-xs sm:text-lg font-bold text-cyan-400">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-1">
+            <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+                <h3 class="text-[10px] font-bold text-blue-400 uppercase mb-2">1. Kestrel Truth Injector (Independent)</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-[8px] block mb-1">Inside Temp</label><input type="number" id="k-temp" value="30.00" step="0.01" class="mode-select !bg-blue-900/20" oninput="window.triggerUpdate()" onfocus="this.select()"></div>
+                    <div><label class="text-[8px] block mb-1">Inside RH%</label><input type="number" id="k-rh" value="65.00" step="0.01" class="mode-select !bg-blue-900/20" oninput="window.triggerUpdate()" onfocus="this.select()"></div>
+                    <div><label class="text-[8px] block mb-1">Wind Speed (FPM)</label><input type="number" id="k-fpm" value="0.00" step="1" class="mode-select !bg-blue-900/20" oninput="window.triggerUpdate()" onfocus="this.select()"></div>
+                    <div><label class="text-[8px] block mb-1">Computed SP (Pa)</label><input type="text" id="kestrel-sp-readout" value="0" readonly class="mode-select !bg-black/40 !text-white font-bold !text-center"></div>
+                    <div class="col-span-2 border-t border-blue-800/50 pt-2 mt-1">
+                        <label class="text-[7px] block mb-1 uppercase tracking-wider">HEIGHT OF EXPOSURE (FEET)</label>
+                        <div class="flex gap-2">
+                            <select id="kestrel-curtain-dropdown" class="mode-select !text-blue-400 !text-left flex-1" onchange="window.syncBlock(this.value, 'dropdown', 'kestrel')"></select>
+                            <input type="number" id="kestrel-pad-open" value="50.00" step="0.01" class="mode-select !text-blue-400 w-16" oninput="window.syncBlock(this.value, 'manual', 'kestrel')" onfocus="this.select()">
+                        </div>
+                        <input type="text" id="kestrel-feet-readout" value="0.00" readonly class="bg-black/40 text-center text-[10px] text-white font-bold w-full mt-1 border border-blue-900/30 rounded">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <div class="bg-slate-800 p-2 rounded-xl border border-slate-600 shadow-lg">
+                    <h3 class="text-[9px] font-bold text-green-500 uppercase mb-1">Motor Logic Assignment</h3>
+                    <div class="grid grid-cols-4 gap-1" id="motor-grid"></div>
+                </div>
+
+                <div class="bg-slate-800 p-2 rounded-xl border border-slate-600 shadow-lg">
+                    <h3 class="text-[9px] font-bold text-yellow-500 uppercase mb-1 tracking-tighter">Operational Curtain Adjustment (L/C/R)</h3>
+                    <div class="space-y-1.5">
+                        <div class="flex gap-1 items-center">
+                            <span class="text-[8px] text-white/50 w-6 font-bold">L:</span>
+                            <select id="phys-curtain-dropdown-L" class="mode-select !text-yellow-500 !text-left flex-1" onchange="window.syncBlock(this.value, 'dropdown', 'phys-L')"></select>
+                            <input type="number" id="phys-L-pad-open" value="50.00" step="0.01" class="mode-select w-12" oninput="window.triggerUpdate()" onfocus="this.select()">
+                        </div>
+                        <div class="flex gap-1 items-center">
+                            <span class="text-[8px] text-white/50 w-6 font-bold">CTR:</span>
+                            <select id="phys-curtain-dropdown-C" class="mode-select !text-yellow-500 !text-left flex-1" onchange="window.syncBlock(this.value, 'dropdown', 'phys-C')"></select>
+                            <input type="number" id="phys-C-pad-open" value="50.00" step="0.01" class="mode-select w-12" oninput="window.triggerUpdate()" onfocus="this.select()">
+                        </div>
+                        <div class="flex gap-1 items-center">
+                            <span class="text-[8px] text-white/50 w-6 font-bold">R:</span>
+                            <select id="phys-curtain-dropdown-R" class="mode-select !text-yellow-500 !text-left flex-1" onchange="window.syncBlock(this.value, 'dropdown', 'phys-R')"></select>
+                            <input type="number" id="phys-R-pad-open" value="50.00" step="0.01" class="mode-select w-12" oninput="window.triggerUpdate()" onfocus="this.select()">
+                        </div>
+                    </div>
+                    <div class="mt-1 flex gap-1">
+                        <input type="text" id="live-fpm-readout" value="0" readonly class="mode-select !bg-black/40 !text-green-400 font-bold !text-center flex-1" title="Live Air Speed (FPM)">
+                        <input type="text" id="live-sp-readout" value="0" readonly class="mode-select !bg-black/40 !text-blue-400 font-bold !text-center flex-1" title="Live Static Pressure (Pa)">
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <div class="bg-slate-800 p-2 rounded-xl border border-slate-600 shadow-lg">
+                        <div class="flex justify-between items-center mb-1 px-1">
+                            <h3 class="text-[9px] font-bold text-blue-400 uppercase">Cooling Pads</h3>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[6px] text-white/50 uppercase font-bold tracking-widest">Pad Alarm Off</span>
+                                <label class="toggle-switch"><input type="checkbox" id="well-alarm-override" onchange="window.triggerUpdate()"><span class="slider"></span></label>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-slate-950 p-1 rounded text-center border border-slate-800">
+                                <span class="text-[7px] text-gray-400 uppercase">Pump 1 (L/C)</span>
+                                <select class="mode-select !text-[8px]" id="well-mode-1" onchange="window.triggerUpdate()"><option value="off" selected>0</option><option value="auto">A</option><option value="manual">M</option></select>
+                            </div>
+                            <div class="bg-slate-950 p-1 rounded text-center border border-slate-800">
+                                <span class="text-[7px] text-gray-400 uppercase">Pump 2 (R)</span>
+                                <select class="mode-select !text-[8px]" id="well-mode-2" onchange="window.triggerUpdate()"><option value="off" selected>0</option><option value="auto">A</option><option value="manual">M</option></select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 p-2 rounded-xl border border-slate-600 shadow-lg">
+                        <div class="flex justify-between items-center mb-1 px-1">
+                            <h3 class="text-[9px] font-bold text-orange-400 uppercase">Heating Management</h3>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[6px] text-white/50 uppercase font-bold tracking-widest">Enable Heaters</span>
+                                <label class="toggle-switch"><input type="checkbox" id="master-heat-switch" onchange="window.handleMasterHeatToggle()"><span class="slider"></span></label>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="bg-slate-950 p-1 rounded border border-slate-800">
+                                    <label class="text-[7px] text-gray-400 uppercase block mb-0.5">LPG Lamps (Max 40)</label>
+                                    <input type="number" id="heat-lamp-qty" value="0" min="0" max="40" class="mode-select !text-[8px] !text-left disabled:opacity-30" oninput="window.triggerUpdate()" disabled>
+                                </div>
+                                <div class="bg-slate-950 p-1 rounded border border-slate-800">
+                                    <label class="text-[7px] text-gray-400 uppercase block mb-0.5">Expansion Phase</label>
+                                    <select id="brood-phase" class="mode-select !text-[8px] disabled:opacity-30" onchange="window.triggerUpdate()" disabled>
+                                        <option value="1">Phase 1 (1/6 Vol)</option>
+                                        <option value="2">Phase 2 (1/4 Vol)</option>
+                                        <option value="3">Phase 3 (1/2 Vol)</option>
+                                        <option value="4">Phase 4 (3/4 Vol)</option>
+                                        <option value="5">Phase 5 (Full House)</option>
+                                        <option value="6">Phase 6 (Custom Area)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div id="brood-dimension-readouts" class="grid grid-cols-3 gap-1">
+                                <div class="bg-slate-950 p-1 rounded border border-slate-800">
+                                    <label class="text-[6px] text-gray-500 uppercase block">L (m)</label>
+                                    <input type="number" id="brood-l-val" value="0" step="0.1" class="mode-select !text-[7px] !text-left disabled:text-blue-400 disabled:opacity-100" oninput="window.triggerUpdate()" readonly disabled>
+                                </div>
+                                <div class="bg-slate-950 p-1 rounded border border-slate-800">
+                                    <label class="text-[6px] text-gray-500 uppercase block">W (m)</label>
+                                    <input type="number" id="brood-w-val" value="0" step="0.1" class="mode-select !text-[7px] !text-left disabled:text-blue-400 disabled:opacity-100" oninput="window.triggerUpdate()" readonly disabled>
+                                </div>
+                                <div class="bg-slate-950 p-1 rounded border border-slate-800">
+                                    <label class="text-[6px] text-gray-500 uppercase block">H (m)</label>
+                                    <input type="number" id="brood-h-val" value="0" step="0.1" class="mode-select !text-[7px] !text-left disabled:text-blue-400 disabled:opacity-100" oninput="window.triggerUpdate()" readonly disabled>
+                                </div>
+                            </div>
+
+                            <div id="brood-handshake-note" class="text-[7px] text-blue-400 font-bold uppercase text-center blinking transition-all duration-300 opacity-0">
+                                Handshaking with Farm structural Specs data
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COL 3: ANALYTICS & BREED LOG -->
+    <div class="flex flex-col gap-3">
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-600 shadow-xl">
+            <h3 class="text-[10px] font-bold text-blue-400 uppercase mb-2 flex justify-between"><span>Verification Log</span><div class="flex gap-1"><button onclick="window.runAudit()" class="bg-blue-600 px-2 py-0.5 rounded text-[8px] font-bold text-white uppercase tracking-wider transition-all hover:bg-blue-500">Verify Data</button><button onclick="window.getAiStrategy()" class="bg-purple-600 px-2 py-0.5 rounded text-[8px] font-bold text-white uppercase tracking-wider transition-all hover:bg-purple-500 ai-pulse">✨ Strategy</button></div></h3>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+                <div class="flex flex-col"><label class="text-[8px] text-gray-400 uppercase">Breed</label><select id="breed-select" class="manual-input" onchange="window.handleBreedChange()"><option value="standard" selected>Industry SOP</option><option value="cobb500">Cobb 500</option><option value="ross308">Ross 308</option></select></div>
+                <div class="flex flex-col"><label class="text-[8px] text-gray-400 uppercase">Age (Day)</label><input type="number" id="chick-day" value="1" min="1" max="45" class="manual-input" oninput="window.handleBreedChange()" onfocus="this.select()"></div>
+            </div>
+            <div class="param-box text-[9px] text-white opacity-80 uppercase leading-loose border border-slate-800 bg-slate-950/50 p-2 rounded"><div>TEMP: <span id="req-t">--</span>°C | RH: <span id="req-rh">--</span>%</div><div>SP: <span id="req-sp">--</span> Pa | AS: <span id="req-as">-- M/S (-- FPM)</span></div></div>
+            <div id="normalization-output" class="mt-3 h-28 overflow-y-auto no-scrollbar border-blue-900/50 text-[9px] p-2 bg-black/20 rounded"></div>
+            <div class="mt-2 max-h-40 overflow-y-auto no-scrollbar bg-black/40 rounded border border-slate-800"><table class="schedule-table text-[9px]"><thead><tr><th>DAY</th><th>TEMP</th><th>RH</th><th>FPM</th><th>SP</th></tr></thead><tbody id="breed-schedule-body"></tbody></table></div>
+        </div>
+        <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 shadow-lg flex items-center justify-between"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Speech Interface</span><div class="flex items-center gap-3"><span class="text-[8px] text-red-500 font-bold uppercase">Mute</span><label class="toggle-switch"><input type="checkbox" id="mute-speech"><span class="slider"></span></label></div></div>
+        <div class="lcd-monitor p-4 rounded-xl border-4 text-[10px] uppercase space-y-1 relative">
+            <button onclick="window.speakStatus()" class="absolute top-2 right-2 text-green-500 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-volume-2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></button>
+            <div class="flex justify-between"><span>House Vol:</span> <span id="lcd-vol">--</span></div>
+            <div class="flex justify-between border-t border-green-900/30 pt-1"><span>Target T:</span> <span id="lcd-tgt-temp" class="text-yellow-500">--</span></div>
+            <div class="flex justify-between"><span>Actual T:</span> <span id="lcd-adj-temp" class="text-white font-bold">--</span></div>
+            <div class="flex justify-between border-t border-orange-900/30 pt-1"><span>Thermal Lift:</span> <span id="lcd-thermal-lift" class="text-orange-400">+0.00°C</span></div>
+            <div class="flex justify-between"><span>RH Dry-Out:</span> <span id="lcd-rh-drop" class="text-blue-300">-0.0%</span></div>
+            <div class="flex justify-between border-t border-green-900 mt-1 pt-1"><span>Result:</span> <span id="handshake-result" class="text-green-500 font-bold">READY</span></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    (function() {
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fedhers-logic-v25';
+        const apiKey = "";
+
+        // Synchronized T-607 Factory Set Points
+        let settings = { 
+            "01": { value: 32.0, label: "Room Temperature" }, 
+            "02": { value: 1.0, label: "Heat Differential" }, 
+            "03": { value: 1.0, label: "Fan 1 Differential" }, 
+            "04": { value: 2.0, label: "Fan 2 Differential" }, 
+            "05": { value: 3.0, label: "Fan 3 Differential" }, 
+            "06": { value: 4.0, label: "Fan 4 Differential" }, 
+            "07": { value: 5.0, label: "Fan 5 Differential" }, 
+            "08": { value: 0.30, label: "Fan On Time (mm.ss)" }, 
+            "09": { value: 4.30, label: "Fan Off Time (mm.ss)" }, 
+            "10": { value: 80, label: "Humidity Set %" }, 
+            "11": { value: 28.0, label: "Cool On Temp (ABS)" }, 
+            "12": { value: 0.30, label: "Cool On Time (mm.ss)" }, 
+            "13": { value: 2.30, label: "Cool Off Time (mm.ss)" }, 
+            "14": { value: 5.0, label: "Hot Alarm Diff" }, 
+            "15": { value: 5.0, label: "Cold Alarm Diff" }, 
+            "16": { value: 0.0, label: "Water Counter" },
+            "17": { value: 0.0, label: "Lock Code" },
+            "18": { value: 0.0, label: "Fan Timer Display" },
+            "19": { value: 0.0, label: "Cool Timer Display" },
+            "20": { value: 0.0, label: "Alarm Type" },
+            "21": { value: 2.0, label: "Sensor Average" },
+            "22": { value: 1.0, label: "Net Name" },
+            "23": { value: 0.0, label: "Digital Inputs" },
+            "24": { value: 1.0, label: "Fan Mode (Alt)" },
+            "25": { value: 2.11, label: "Version Number" }
+        };
+
+        const breedManuals = { 
+            cobb500: Array.from({length:45}, (_,i)=>({t:34-(i*0.2), rh:65, sp:Math.round(20+(i*0.34)), as:0.0+(i*0.08)})), 
+            ross308: Array.from({length:45}, (_,i)=>({t:32-(i*0.15), rh:65, sp:Math.round(20+(i*0.34)), as:0.0+(i*0.07)})), 
+            standard: Array.from({length:45}, (_,i)=>({t:33-(i*0.2), rh:60, sp:Math.round(18+(i*0.31)), as:0.0+(i*0.06)})) 
+        };
+
+        let ventTimer = 0, coolTimer = 0, ventCycleCount = 0;
+        let isBooting = true, adjustedTemp = 30.0, adjustedRH = 65.0, isProgMode = false, activeFunc = "00", inputBuffer = "0000", isFirstEntry = false, isHiddenUnlocked = false, isAccFlashing = false, isEnteringFunc = false, sensorDisplayId = 0;
+
+        // Aerodynamic Truth Anchors
+        let lastInjectedKestrelFpm = -1;
+        let baseFpmAnchor = 0;
+        let fansAtInjectedTruth = 0;
+        let lastInjectedKestrelSp = -1;
+        let baseSpAnchor = 0;
+        let fansAtInjectedSp = 0;
+        let areaAtInjectedSp = 0;
+
+        function getSOPValue(key) {
+            let dayVal = parseInt(document.getElementById('chick-day')?.value || 1);
+            const breed = document.getElementById('breed-select')?.value || 'standard';
+            const entry = (breedManuals[breed] || breedManuals.standard)[Math.max(0, Math.min(44, dayVal - 1))];
+            return entry && entry[key] !== undefined ? entry[key] : 0;
+        }
+
+        async function callGemini(prompt, model = "gemini-2.5-flash-preview-09-2025") {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+                    if (!res.ok) throw new Error();
+                    return await res.json();
+                } catch (e) { await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000)); }
+            }
+        }
+
+        window.runAudit = async function() {
+            const out = document.getElementById('normalization-output'); if (!out) return;
+            out.innerHTML = `<div class="text-blue-400 animate-pulse uppercase">AUDITING SYSTEM...</div>`;
+            const dayVal = parseInt(document.getElementById('chick-day')?.value || 1);
+            const sopT = getSOPValue('t'); const sopRH = getSOPValue('rh');
+            const prompt = `AI Audit Report - House Day ${dayVal}. SOP: T=${sopT}C, RH=${sopRH}%. Produced: T=${adjustedTemp.toFixed(2)}C, RH=${adjustedRH.toFixed(1)}%. Thermal Lift=${document.getElementById('lcd-thermal-lift').innerText}. Compare datasets. Guide to normalize. Max 50 words. Technical.`;
+            try { 
+                const json = await callGemini(prompt); 
+                out.innerHTML = `<div class="text-green-300 leading-tight">${json.candidates?.[0]?.content?.parts?.[0]?.text || "Verification Error"}</div>`; 
+            } catch (e) { out.innerHTML = `<div class="text-red-400">Connection Lost.</div>`; }
+        };
+
+        window.getAiStrategy = async function() {
+            const out = document.getElementById('normalization-output'); if (!out) return;
+            out.innerHTML = `<div class="text-purple-400 animate-pulse uppercase">CONSULTING EXPERT...</div>`;
+            const prompt = `Expert advice. Day ${document.getElementById('chick-day')?.value || 1}, Temp ${adjustedTemp.toFixed(2)}C. RH=${adjustedRH.toFixed(1)}%. Thermal Lift=${document.getElementById('lcd-thermal-lift').innerText}. 3 short bullet points strategy.`;
+            try { 
+                const json = await callGemini(prompt); 
+                out.innerHTML = `<div class="text-purple-300 leading-tight">${json.candidates?.[0]?.content?.parts?.[0]?.text || "Strategy Error"}</div>`; 
+            } catch (e) { out.innerHTML = `<div class="text-red-400">Expert Connection Lost.</div>`; }
+        };
+
+        window.speakStatus = async function() {
+            if (document.getElementById('mute-speech')?.checked) return;
+            const day = document.getElementById('chick-day')?.value || 1;
+            const statusText = `Status Report. Chick Age Day ${day}. House Temperature is ${adjustedTemp.toFixed(1)} degrees Celsius. Relative Humidity is ${adjustedRH.toFixed(0)} percent.`;
+            const payload = { contents: [{ parts: [{ text: `Say professionally: ${statusText}` }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } }, model: "gemini-2.5-flash-preview-tts" };
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+                const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const result = await response.json();
+                const pcmData = result.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+                if (pcmData) {
+                    const audioBlob = pcmToWav(pcmData, 24000); 
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl); audio.play();
+                }
+            } catch (e) { console.error("TTS Error", e); }
+        };
+
+        function pcmToWav(base64Pcm, sampleRate) {
+            const binaryString = window.atob(base64Pcm);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+            const buffer = new ArrayBuffer(44 + len);
+            const view = new DataView(buffer);
+            const writeString = (offset, string) => { for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i)); };
+            writeString(0, 'RIFF'); view.setUint32(4, 36 + len, true); writeString(8, 'WAVE'); writeString(12, 'fmt ');
+            view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true); view.setUint16(34, 16, true); writeString(36, 'data'); view.setUint32(40, len, true);
+            for (let i = 0; i < len; i++) view.setUint8(44 + i, bytes[i]);
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        window.handleMasterHeatToggle = function() {
+            const enabled = document.getElementById('master-heat-switch').checked;
+            const note = document.getElementById('brood-handshake-note');
+            ['heat-lamp-qty', 'brood-phase'].forEach(id => document.getElementById(id).disabled = !enabled);
+            if (!enabled) document.getElementById('heat-lamp-qty').value = "0";
+            note.style.opacity = enabled ? "1" : "0";
+            window.triggerUpdate();
+        };
+
+        window.initKeypad = function() {
+            const container = document.getElementById('keypad-container');
+            if (!container) return;
+            container.innerHTML = '';
+            const keys = [1,2,3,4,5,6,7,8,9,0,'DATA','ENTER','PROG'];
+            keys.forEach(k => {
+                const btn = document.createElement('button');
+                btn.className = `keypad-btn py-2 rounded-lg font-bold text-xs ${k==='DATA'?'bg-blue-800':k==='ENTER'?'bg-green-800':k==='PROG'?'bg-yellow-700 col-span-3':''}`;
+                btn.innerText = k;
+                btn.onclick = () => { if (k === 'DATA') window.pressData(); else if (k === 'ENTER') window.pressEnter(); else if (k === 'PROG') window.pressProg(); else window.pressKey(k); };
+                container.appendChild(btn);
+            });
+        };
+
+        window.initStructureSelectors = function() {
+            const hHgt = parseFloat(document.getElementById('house-hgt')?.value || 2.5);
+            const totalInches = hHgt * 39.3701;
+            ['kestrel-curtain-dropdown', 'phys-curtain-dropdown-L', 'phys-curtain-dropdown-C', 'phys-curtain-dropdown-R'].forEach(id => {
+                const sel = document.getElementById(id); if (!sel) return;
+                sel.innerHTML = '';
+                for(let p=0; p<=100; p+=5) { 
+                    let opt = document.createElement('option'); 
+                    opt.value = p; 
+                    opt.innerText = `${p}% - ${(p/100 * totalInches).toFixed(1)}"`; 
+                    sel.appendChild(opt); 
+                }
+                let customOpt = document.createElement('option'); customOpt.value = 'custom'; customOpt.innerText = 'Custom Entry'; sel.appendChild(customOpt);
+            });
+        };
+
+        window.initDynamicLayout = function() {
+            const arrowContainer = document.getElementById('arrows-container');
+            if (arrowContainer) {
+                arrowContainer.innerHTML = '';
+                for(let i=1; i<=12; i++) {
+                    const lane = document.createElement('div'); lane.id = `arrows-${i}`; lane.className = 'flow-arrow-lane';
+                    lane.innerHTML = '<div class="arrow-sprite"></div><div class="arrow-sprite"></div><div class="arrow-sprite"></div><div class="arrow-sprite"></div>';
+                    arrowContainer.appendChild(lane);
+                }
+            }
+            const fansRow = document.getElementById('fans-row');
+            if (fansRow) {
+                fansRow.innerHTML = '';
+                for(let i=1; i<=12; i++) {
+                    const f = document.createElement('div'); f.className = 'flex flex-col items-center gap-0.5 sm:gap-1 w-auto sm:w-[32px]';
+                    f.innerHTML = `<div class="hidden sm:flex w-7 h-7 md:w-8 md:h-8 rounded-full border border-gray-700 bg-slate-900 items-center justify-center overflow-hidden relative"><svg viewBox="0 0 100 100" class="w-full h-full text-gray-700"><g id="fan-blades-${i}" class="origin-center"><ellipse cx="50" cy="25" rx="10" ry="22" fill="currentColor"/><ellipse cx="50" cy="75" rx="10" ry="22" fill="currentColor"/><ellipse cx="25" cy="50" rx="22" ry="10" fill="currentColor"/><ellipse cx="75" cy="50" rx="22" ry="10" fill="currentColor"/></g></svg></div><div id="fan-orb-${i}" class="fan-orb"></div><span class="text-[5px] sm:text-[6px] text-gray-500 font-bold uppercase">F${i}</span>`;
+                    fansRow.appendChild(f);
+                }
+            }
+            const motorGrid = document.getElementById('motor-grid');
+            if (motorGrid) {
+                motorGrid.innerHTML = '';
+                for(let i=1; i<=12; i++) {
+                    const cell = document.createElement('div'); cell.className = 'bg-slate-950 p-1 rounded text-center border border-slate-800';
+                    cell.innerHTML = `<span class="text-[7px] text-gray-500">F${i}</span><select class="mode-select !text-[7px] !h-4" id="fan-mode-${i}" onchange="window.triggerUpdate()"><option value="off" selected>0</option><option value="auto">A</option><option value="manual">M</option></select><select class="mode-select !text-[7px] !h-4 !mt-1 !text-yellow-500" id="fan-assign-${i}" onchange="window.triggerUpdate()"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select>`;
+                    motorGrid.appendChild(cell);
+                }
+            }
+        };
+
+        function calculatePhysics() {
+            const hLen = parseFloat(document.getElementById('house-len').value || 138), hWid = parseFloat(document.getElementById('house-wid').value || 16), hHgt = parseFloat(document.getElementById('house-hgt').value || 2.5), currentVol = hLen * hWid * hHgt;
+            const physOpenL = parseFloat(document.getElementById('phys-L-pad-open')?.value || 0) / 100;
+            const physOpenC = parseFloat(document.getElementById('phys-C-pad-open')?.value || 0) / 100;
+            const physOpenR = parseFloat(document.getElementById('phys-R-pad-open')?.value || 0) / 100;
+            if (document.getElementById('curtain-left')) document.getElementById('curtain-left').style.height = (100 - (physOpenL * 100)) + "%";
+            if (document.getElementById('curtain-center')) document.getElementById('curtain-center').style.height = (100 - (physOpenC * 100)) + "%";
+            if (document.getElementById('curtain-right')) document.getElementById('curtain-right').style.height = (100 - (physOpenR * 100)) + "%";
+            const masterHeatOn = document.getElementById('master-heat-switch').checked;
+            const lampInput = document.getElementById('heat-lamp-qty');
+            let lampQty = parseInt(lampInput.value || 0);
+            if (lampQty > 40) { lampQty = 0; lampInput.value = "0"; flashText("Err"); }
+            let bL = hLen, bW = hWid, bH = hHgt;
+            const phase = document.getElementById('brood-phase').value;
+            const inputs = ['brood-l-val', 'brood-w-val', 'brood-h-val'];
+            const noteEl = document.getElementById('brood-handshake-note');
+            if (masterHeatOn) {
+                noteEl.innerText = "Handshaking with Farm structural Specs data"; noteEl.classList.remove('text-red-500'); noteEl.classList.add('text-blue-400');
+                if (phase === "1") { bL = hLen/3; bW = hWid/2; }
+                else if (phase === "2") { bL = hLen/3; bW = hWid*0.75; }
+                else if (phase === "3") { bL = hLen*2/3; bW = hWid*0.75; }
+                else if (phase === "4") { bL = hLen; bW = hWid*0.75; }
+                else if (phase === "5") { bL = hLen; bW = hWid; }
+                else if (phase === "6") {
+                    inputs.forEach(id => { document.getElementById(id).disabled = false; document.getElementById(id).readOnly = false; });
+                    bL = parseFloat(document.getElementById('brood-l-val').value) || 0; bW = parseFloat(document.getElementById('brood-w-val').value) || 0; bH = parseFloat(document.getElementById('brood-h-val').value) || 0;
+                    if (bL > hLen || bW > hWid || bH > hHgt) { 
+                        flashText("Err"); noteEl.innerText = "Building dimension exceed or mismatch data"; noteEl.classList.remove('text-blue-400'); noteEl.classList.add('text-red-500');
+                        inputs.forEach(id => document.getElementById(id).value = "0"); bL = 0; bW = 0; bH = 0;
+                    }
+                }
+                if (phase !== "6") {
+                    inputs.forEach(id => { document.getElementById(id).disabled = true; document.getElementById(id).readOnly = true; });
+                    document.getElementById('brood-l-val').value = bL.toFixed(1); document.getElementById('brood-w-val').value = bW.toFixed(1); document.getElementById('brood-h-val').value = bH.toFixed(1);
+                }
+            }
+            
+            const relays = logicCore();
+            let activeFans = 0;
+            for(let i=1; i<=12; i++){
+                const m = document.getElementById(`fan-mode-${i}`).value, a = parseInt(document.getElementById(`fan-assign-${i}`).value);
+                let spinning = (m === 'manual') || (m === 'auto' && a > 0 && relays[`fan${a}`]);
+                const blades = document.getElementById(`fan-blades-${i}`), orb = document.getElementById(`fan-orb-${i}`), arrs = document.getElementById(`arrows-${i}`);
+                if(blades) blades.classList.toggle('fan-spinning', spinning);
+                if(orb) orb.className = "fan-orb " + (spinning ? "fan-orb-green" : (m==='auto'?'fan-orb-yellow':'fan-orb-red'));
+                if(arrs) arrs.style.visibility = spinning ? 'visible' : 'hidden';
+                if(spinning) activeFans++;
+            }
+
+            const crossSection = hWid * hHgt;
+            const physExposedArea = ( (hWid * 11/16) * hHgt * physOpenL + (hWid) * hHgt * physOpenC + (hWid * 11/16) * hHgt * physOpenR ) * 1.0; 
+            
+            const kFpmInput = parseFloat(document.getElementById('k-fpm')?.value || 0);
+            if (kFpmInput !== lastInjectedKestrelFpm) { baseFpmAnchor = kFpmInput; fansAtInjectedTruth = activeFans; lastInjectedKestrelFpm = kFpmInput; }
+            const fpmPerFan = (crossSection > 0) ? (12.74 / crossSection) * 196.85 : 0;
+            const liveFpm = Math.max(0, baseFpmAnchor + (activeFans - fansAtInjectedTruth) * fpmPerFan);
+            const liveMs = liveFpm / 196.85;
+            if (document.getElementById('speed-blower')) document.getElementById('speed-blower').innerText = `${liveMs.toFixed(1)} m/s (${Math.round(liveFpm)} fpm)`;
+            if (document.getElementById('live-fpm-readout')) document.getElementById('live-fpm-readout').value = Math.round(liveFpm);
+
+            const kPadOpenPercent = parseFloat(document.getElementById('kestrel-pad-open')?.value || 0) / 100;
+            const kFeetReadout = (kPadOpenPercent * hHgt * 3.28084).toFixed(2);
+            if (document.getElementById('kestrel-feet-readout')) document.getElementById('kestrel-feet-readout').value = kFeetReadout;
+
+            const kArea = (hWid * hHgt * 2.375) * (kPadOpenPercent || 0.01); 
+            const kFlowM3s = (kFpmInput / 196.85) * crossSection;
+            const kComputedSp = Math.round(Math.pow(kFlowM3s / kArea, 2) * 1.5);
+            if (document.getElementById('kestrel-sp-readout')) document.getElementById('kestrel-sp-readout').value = isNaN(kComputedSp) || !isFinite(kComputedSp) ? 0 : kComputedSp;
+            if (kComputedSp !== lastInjectedKestrelSp) { baseSpAnchor = kComputedSp; fansAtInjectedSp = activeFans; areaAtInjectedSp = physExposedArea; lastInjectedKestrelSp = kComputedSp; }
+            let livePa = baseSpAnchor;
+            if (baseSpAnchor > 0) {
+                const fanScaling = Math.pow(activeFans / (fansAtInjectedSp || 1), 2);
+                const areaScaling = Math.pow((areaAtInjectedSp || 0.1) / (physExposedArea || 0.1), 2);
+                livePa = Math.round(baseSpAnchor * fanScaling * areaScaling);
+            } else { livePa = Math.round(Math.pow((activeFans * 12.74) / (physExposedArea || 0.01), 2) * 1.5); }
+            if (document.getElementById('live-sp-readout')) document.getElementById('live-sp-readout').value = livePa;
+            if (document.getElementById('static-press-display')) document.getElementById('static-press-display').innerText = livePa + " Pa";
+
+            const p1Mode = document.getElementById('well-mode-1')?.value; const p2Mode = document.getElementById('well-mode-2')?.value;
+            const padWaterActive = (p1Mode === 'manual' || (p1Mode === 'auto' && relays.cool)) || (p2Mode === 'manual' || (p2Mode === 'auto' && relays.cool));
+            ['elev-left', 'elev-center', 'elev-right'].forEach(id => document.getElementById(id)?.classList.toggle('water-active', padWaterActive));
+            let thermalLift = 0, rhDryOut = 0;
+            if (masterHeatOn && (relays.heat || lampQty > 0)) {
+                const activeHeaters = relays.heat ? Math.max(36, lampQty) : lampQty;
+                const totalKW = activeHeaters * 3.9 * 0.95;
+                thermalLift = (totalKW / (Math.max(12, activeFans * 12.74) * 1.2)) * (currentVol / Math.max(1, bL*bW*bH)) * 0.15;
+                rhDryOut = thermalLift * 2.8;
+            }
+
+            let targetT = parseFloat(document.getElementById('k-temp').value) + thermalLift - (activeFans * 0.35) - (padWaterActive ? 4.5 : 0);
+            if(isBooting) {
+                adjustedTemp = targetT;
+            } else {
+                adjustedTemp += (targetT - adjustedTemp) * 0.1; 
+            }
+
+            let targetRH = parseFloat(document.getElementById('k-rh').value) + (padWaterActive ? 12.5 : 0) - rhDryOut;
+            if(!isBooting) {
+                adjustedRH += (targetRH - adjustedRH) * ((activeFans * 40000/3600) / currentVol || 0.005); 
+            } else {
+                adjustedRH = targetRH;
+            }
+
+            document.getElementById('lcd-thermal-lift').innerText = "+" + thermalLift.toFixed(2) + "°C";
+            document.getElementById('lcd-rh-drop').innerText = "-" + rhDryOut.toFixed(1) + "%";
+            document.getElementById('dash-temp').innerText = adjustedTemp.toFixed(1) + "°C";
+            document.getElementById('dash-rh').innerText = adjustedRH.toFixed(1) + "%";
+            document.getElementById('lcd-vol').innerText = currentVol.toFixed(0) + " m³";
+            const exchangeEl = document.getElementById('exchange-time');
+            if (exchangeEl) exchangeEl.innerText = relays.minVentPhase ? "ON: " + formatClock(relays.minVentTimeLeft) : "OFF: " + formatClock(relays.minVentTimeLeft);
+
+            const sopT = getSOPValue('t');
+            let tickerMsgs = [];
+            if (sopT && Math.abs(settings["01"].value - sopT) > 3.0) tickerMsgs.push("TARGET TEMP SOP MISMATCH");
+            if (relays.alarmType === 1) tickerMsgs.push("LOW TEMP ALARM");
+            if (relays.alarmType === 2) tickerMsgs.push("HIGH TEMP ALARM");
+            if (activeFans === 0 && !isBooting) tickerMsgs.push("VENTILATION OFF");
+            if (relays.cool && p1Mode === 'off' && p2Mode === 'off') tickerMsgs.push("COOLING PUMPS OFF");
+
+            const ticker = document.getElementById('alarm-ticker');
+            if (ticker) {
+                ticker.innerText = tickerMsgs.length > 0 ? "STATUS: " + tickerMsgs.join(" // ") : "";
+                if (tickerMsgs.length > 0) ticker.classList.add('blinking'); else ticker.classList.remove('blinking');
+            }
+
+            const hLampUI = document.getElementById('brooder-lamp-display');
+            const hBadgeUI = document.getElementById('lamp-count-val');
+            const hFlameUI = document.getElementById('lamp-svg-flame');
+            const curActiveHeaters = (masterHeatOn && (relays.heat || lampQty > 0)) ? (relays.heat ? Math.max(36, lampQty) : lampQty) : 0;
+            if (hLampUI && hBadgeUI && hFlameUI) {
+                if (curActiveHeaters > 0) {
+                    hLampUI.classList.add('lamp-active'); hLampUI.classList.remove('lamp-inactive');
+                    hBadgeUI.innerText = "[ " + lampQty + " ]"; 
+                    hBadgeUI.classList.remove('hidden');
+                    if (relays.heat || curActiveHeaters > 0) hBadgeUI.classList.add('blinking'); else hBadgeUI.classList.remove('blinking');
+                    hFlameUI.classList.remove('hidden'); hFlameUI.classList.add('flame-active');
+                } else {
+                    hLampUI.classList.add('lamp-inactive'); hLampUI.classList.remove('lamp-active');
+                    hBadgeUI.classList.add('hidden'); hBadgeUI.classList.remove('blinking');
+                    hFlameUI.classList.add('hidden'); hFlameUI.classList.remove('flame-active');
+                }
+            }
+        }
+
+        function logicCore() {
+            const t = adjustedTemp, target = settings["01"].value;
+            const vOn = convertToSeconds(settings["08"].value), vOff = convertToSeconds(settings["09"].value), vTotal = Math.max(1, vOn + vOff);
+            const isVentCycleOn = (vOn > 0) ? (ventTimer % vTotal < vOn) : false;
+            const timeLeft = isVentCycleOn ? (vOn - (ventTimer % vTotal)) : (vTotal - (ventTimer % vTotal));
+            const altGroupCount = Math.max(1, Math.min(5, parseInt(settings["24"].value)));
+            const currentRotatingGroup = (ventCycleCount % altGroupCount) + 1;
+            const cOn = convertToSeconds(settings["12"].value), cOff = convertToSeconds(settings["13"].value), cTotal = Math.max(1, cOn + cOff);
+            const isCoolCycleOn = (cOn > 0) ? (coolTimer % cTotal < cOn) : false;
+            const coolTimeLeft = (cTotal > 0) ? (isCoolCycleOn ? (cOn - (coolTimer % cTotal)) : (cTotal - (coolTimer % cTotal))) : 0;
+            let alarmType = 0; if (t < (target - settings["15"].value)) alarmType = 1; else if (t > (target + settings["14"].value)) alarmType = 2;
+
+            return { 
+                heat: t < (target - settings["02"].value), 
+                fan1: t >= (target + settings["03"].value) || (isVentCycleOn && currentRotatingGroup === 1), 
+                fan2: t >= (target + settings["04"].value) || (isVentCycleOn && currentRotatingGroup === 2), 
+                fan3: t >= (target + settings["05"].value) || (isVentCycleOn && currentRotatingGroup === 3), 
+                fan4: t >= (target + settings["06"].value) || (isVentCycleOn && currentRotatingGroup === 4), 
+                fan5: t >= (target + settings["07"].value) || (isVentCycleOn && currentRotatingGroup === 5), 
+                cool: t >= settings["11"].value && adjustedRH < settings["10"].value && isCoolCycleOn, 
+                minVentPhase: isVentCycleOn, minVentTimeLeft: timeLeft, coolTimeLeft: coolTimeLeft, alarmType: alarmType 
+            };
+        }
+
+        function convertToSeconds(v) { return Math.floor(v)*60 + Math.round((v%1)*100); }
+        function formatClock(s) { let m = Math.floor(s/60); return `${m}:${(s%60).toString().padStart(2,'0')}`; }
+        window.triggerUpdate = function() { calculatePhysics(); updateUI(); };
+        function updateUI() {
+            const r = logicCore();
+            ['heat','fan1','fan2','fan3','fan4','fan5','cool'].forEach(id => { const led = document.getElementById('led-'+id); if(led) led.style.background = r[id] ? (id==='heat'?'#f97316':'#22c55e') : '#1f2937'; });
+            const alarmLed = document.getElementById('led-alarm'); if(alarmLed) alarmLed.style.background = r.alarmType > 0 ? '#ef4444' : '#1f2937';
+            document.getElementById('lcd-tgt-temp').innerText = settings["01"].value.toFixed(2) + "°C";
+            document.getElementById('lcd-adj-temp').innerText = adjustedTemp.toFixed(2) + "°C";
+            window.updateDisplay();
+        }
+        window.handleStructModeChange = function() {
+            const m = document.getElementById('struct-mode').value;
+            if(m==='standard') { document.getElementById('house-len').value="138.00"; document.getElementById('house-wid').value="16.00"; document.getElementById('house-hgt').value="2.50"; }
+            else if(m==='market') { document.getElementById('house-len').value="120.00"; document.getElementById('house-wid').value="12.00"; document.getElementById('house-hgt').value="2.20"; }
+            window.triggerUpdate(); window.initStructureSelectors();
+        };
+        window.handleBreedChange = function() { updateBreedList(); window.triggerUpdate(); };
+        function updateBreedList() {
+            const breed = document.getElementById('breed-select').value, day = parseInt(document.getElementById('chick-day').value || 1);
+            const tbody = document.getElementById('breed-schedule-body'); if(!tbody) return;
+            tbody.innerHTML = '';
+            const breedArr = breedManuals[breed] || breedManuals.standard;
+            breedArr.forEach((active, i) => {
+                const tr = document.createElement('tr'); 
+                if(i+1===day) {
+                    tr.className = 'schedule-active'; document.getElementById('req-t').innerText = active.t.toFixed(1); document.getElementById('req-rh').innerText = active.rh;
+                    document.getElementById('req-sp').innerText = Math.round(20+(i*0.34)); document.getElementById('req-as').innerText = `${active.as.toFixed(2)} M/S (${Math.round(active.as * 196.85)} FPM)`;
+                }
+                tr.innerHTML = `<td>${i+1}</td><td>${active.t.toFixed(1)}</td><td>${active.rh}%</td><td>${Math.round(active.as*196.85)}</td><td>${Math.round(20+(i*0.34))}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.pressKey = function(n) { 
+            if(isAccFlashing || isBooting) return;
+            if (!isEnteringFunc && !isProgMode && activeFunc === "00") {
+                if (n === 1) { sensorDisplayId = 1; setTimeout(() => sensorDisplayId = 0, 3000); window.updateDisplay(); return; }
+                if (n === 2) { sensorDisplayId = 2; setTimeout(() => sensorDisplayId = 0, 3000); window.updateDisplay(); return; }
+                if (n === 7) { sensorDisplayId = 7; setTimeout(() => sensorDisplayId = 0, 3000); window.updateDisplay(); return; }
+            }
+            if (n === 0 && !isProgMode && !isEnteringFunc) { isEnteringFunc = true; inputBuffer = ""; window.updateDisplay(); return; }
+            if (isEnteringFunc) { inputBuffer += n; if (inputBuffer.length === 2) { activeFunc = inputBuffer; isEnteringFunc = false; } window.updateDisplay(); return; }
+            if(isProgMode) { if (isFirstEntry) { inputBuffer = "000" + n; isFirstEntry = false; } else { inputBuffer = (inputBuffer+n).slice(-4); } } 
+            else { let req = (activeFunc==="00")?n.toString().padStart(2,'0'):(activeFunc.slice(-1)+n).slice(-2); if(parseInt(req)<=25 || isHiddenUnlocked) activeFunc=req; } 
+            window.updateDisplay(); 
+        };
+        window.pressData = function() { isEnteringFunc = false; sensorDisplayId = 0; let limit = isHiddenUnlocked ? 25 : 16; let c = (parseInt(activeFunc)||0) + 1; if (c > limit) c = 0; activeFunc = c.toString().padStart(2,'0'); window.updateDisplay(); };
+        window.pressProg = function() { isEnteringFunc = false; isProgMode = true; inputBuffer = "0000"; isFirstEntry = true; window.updateDisplay(); };
+        window.pressEnter = function() { 
+            if (isEnteringFunc) { isEnteringFunc = false; window.updateDisplay(); return; }
+            if(isProgMode) {
+                if (activeFunc === "01" && inputBuffer === "0996") { isHiddenUnlocked = true; flashText("ACC"); isProgMode = false; return; }
+                if (settings[activeFunc]) { settings[activeFunc].value = parseFloat(inputBuffer.substring(0,2)+"."+inputBuffer.substring(2,4)); }
+            } 
+            isProgMode = false; window.triggerUpdate(); 
+        };
+        function flashText(txt) { isAccFlashing = true; const d = document.getElementById('data-display'); if(d) d.innerText = txt; setTimeout(() => { isAccFlashing = false; window.updateDisplay(); }, 1500); }
+        window.updateDisplay = function() {
+            const d = document.getElementById('data-display'), f = document.getElementById('func-display'), r = logicCore();
+            if(!d || !f || isAccFlashing) return;
+            if(isBooting) { d.innerText = "ProLogic"; f.innerText = "--"; return; }
+            if (sensorDisplayId === 1) { d.innerText = (adjustedTemp + 0.2).toFixed(1); f.innerText = "S1"; return; }
+            if (sensorDisplayId === 2) { d.innerText = (adjustedTemp - 0.2).toFixed(1); f.innerText = "S2"; return; }
+            if (sensorDisplayId === 7) { d.innerText = adjustedRH.toFixed(1); f.innerText = "H1"; return; }
+            if (isEnteringFunc) { f.innerText = inputBuffer === "" ? "--" : inputBuffer.padStart(2, '-'); d.innerText = "FUNC"; return; }
+            f.innerText = activeFunc === "00" ? " " : activeFunc;
+            let val = "";
+            if(activeFunc === "00") val = adjustedTemp.toFixed(2); 
+            else if(isProgMode) val = inputBuffer.substring(0,2) + "." + inputBuffer.substring(2,4); 
+            else if(activeFunc === "18") val = r.minVentTimeLeft.toString().padStart(4, '0').substring(0,2) + "." + r.minVentTimeLeft.toString().padStart(4, '0').substring(2,4);
+            else if(activeFunc === "19") val = r.coolTimeLeft.toString().padStart(4, '0').substring(0,2) + "." + r.coolTimeLeft.toString().padStart(4, '0').substring(2,4);
+            else if(activeFunc === "20") val = r.alarmType.toString().padStart(4, '0').substring(0,2) + "." + r.alarmType.toString().padStart(4, '0').substring(2,4);
+            else if(settings[activeFunc]) val = settings[activeFunc].value.toFixed(2);
+            else val = "00.00";
+            d.innerHTML = isProgMode ? `<span class="blinking">${val}</span>` : val;
+        };
+        window.syncBlock = function(v, m, p) { if(m==='dropdown'&&v!=='custom') document.getElementById(p+'-pad-open').value=v; window.triggerUpdate(); };
+        async function initializeSystem() {
+            window.initKeypad(); window.initStructureSelectors(); window.initDynamicLayout();
+            const initAuth = async () => { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); }}; 
+            await initAuth();
+            updateBreedList(); window.triggerUpdate();
+            setInterval(() => { 
+                if(!isBooting) { 
+                    const vOn = convertToSeconds(settings["08"].value), vOff = convertToSeconds(settings["09"].value);
+                    const vTotal = Math.max(1, vOn + vOff);
+                    ventTimer++; coolTimer++;
+                    if (ventTimer % vTotal === 0) { ventCycleCount++; }
+                } 
+                window.triggerUpdate(); 
+            }, 1000);
+            setTimeout(() => { isBooting = false; document.getElementById('logic-state-notif').innerText = "Normal Operation"; window.updateDisplay(); }, 20000);
+        }
+        initializeSystem();
+    }());
+</script>
+</body>
+</html>
